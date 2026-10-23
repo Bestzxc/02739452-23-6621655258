@@ -107,6 +107,13 @@ button:focus-visible {{ outline: 2px solid {ACCENT} !important; outline-offset: 
 [data-testid="stPopover"] button:active {{ transform: scale(0.97); }}
 [data-testid="stPopoverBody"] {{ border-radius: 16px; border: 1px solid {LINE}; background: {SURFACE}; min-width: 300px; }}
 [data-testid="stPopoverBody"] [data-testid="stDownloadButton"] button {{ justify-content: flex-start; border-radius: 12px; }}
+/* เมนูดาวน์โหลด: ปุ่ม + คำอธิบายใต้ปุ่ม เว้นระยะชัดเจนระหว่างแต่ละแบบ */
+[data-testid="stPopoverBody"] {{ padding: 1rem 1.1rem; min-width: 320px; }}
+[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] {{ gap: 0.35rem; }}
+[data-testid="stPopoverBody"] [data-testid="stMarkdownContainer"]:has(> .dl-head, > .dl-desc) {{ margin-bottom: 0; }}
+.dl-head {{ margin-bottom: 0.5rem; }}
+.dl-head .card-sub {{ margin-top: 2px; }}
+.dl-desc {{ color: {INK_3}; font-size: 0.78rem; margin: 0 0 0.7rem 0.6rem; line-height: 1.35; }}
 
 /* ---------- inputs ---------- */
 [data-baseweb="select"] > div, [data-testid="stTextInput"] input {{
@@ -177,13 +184,43 @@ button:focus-visible {{ outline: 2px solid {ACCENT} !important; outline-offset: 
 .timeline .item {{ position: relative; padding: 6px 10px 8px; margin: 0 0 6px -10px; border-radius: 12px;
     transition: background .15s ease; }}
 .timeline .item:hover {{ background: {SURFACE_2}; }}
-.timeline .item::before {{ content: ""; position: absolute; left: -19px; top: 12px; width: 9px; height: 9px;
-    border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px {SURFACE}; }}
+.timeline .tl-dot {{ position: absolute; left: -19px; top: 12px; width: 9px; height: 9px;
+    border-radius: 50%; box-shadow: 0 0 0 3px {SURFACE}; }}
 .timeline .src {{ color: {INK}; font-size: 0.9rem; }}
 .timeline .info {{ color: {INK_2}; font-size: 0.8rem; }}
 .timeline a {{ color: {ACCENT}; text-decoration: none; font-size: 0.8rem; }}
 .timeline a:hover {{ text-decoration: underline; }}
 .muted {{ color: {INK_3}; font-size: 0.85rem; }}
+
+/* ---------- หน้า Pipeline Status ---------- */
+.st-badge {{ display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; padding: 2px 10px 2px 4px;
+    border-radius: 999px; font-size: 0.78rem; font-weight: 500; color: {INK};
+    border: 1px solid transparent; }}
+.st-badge b {{ display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+    color: #0b0c0c; font-size: 0.7rem; }}
+.flow {{ display: flex; align-items: stretch; gap: 10px; margin-top: 14px; flex-wrap: wrap; }}
+.flow-step {{ flex: 1; min-width: 180px; background: {SURFACE_2}; border: 1px solid {LINE}; border-radius: 14px;
+    padding: 14px 16px; transition: border-color .15s ease; }}
+.flow-step:hover {{ border-color: {LINE_HOVER}; }}
+.flow-step span {{ display: block; color: {INK_2}; font-size: 0.85rem; }}
+.flow-step b {{ display: block; color: {INK}; font-size: 2rem; font-weight: 500; line-height: 1.2; margin: 4px 0; }}
+.flow-step small {{ color: {INK_3}; font-size: 0.75rem; }}
+.flow-arrow {{ align-self: center; color: {INK_3}; font-size: 1.4rem; }}
+.flow-step:last-child {{ background: linear-gradient(135deg, {ACCENT_DEEP}, #0f4a33); border-color: transparent; }}
+.flow-step:last-child span, .flow-step:last-child small {{ color: rgba(255,255,255,.8); }}
+.flow-step:last-child b {{ color: #fff; }}
+.step-row {{ display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    padding: 10px 0; border-top: 1px solid {LINE}; }}
+.step-name {{ color: {INK}; font-size: 0.9rem; font-family: ui-monospace, monospace; }}
+.step-name small {{ color: {INK_3}; font-family: {FONT}; margin-left: 6px; }}
+.dot-chips {{ display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }}
+.dot-chip {{ font-size: 0.75rem; color: {INK}; padding: 3px 9px 3px 8px; border-radius: 999px;
+    border: 1px solid transparent; }}
+.dot-chip i {{ display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }}
+.maps-link {{ display: block; margin-top: 14px; padding: 10px 14px; border-radius: 12px; text-align: center;
+    border: 1px solid {LINE_HOVER}; color: {INK} !important; text-decoration: none; font-size: 0.85rem;
+    transition: background .15s ease, border-color .15s ease; }}
+.maps-link:hover {{ background: {SURFACE_2}; border-color: {ACCENT}; }}
 
 /* ---------- table ---------- */
 [data-testid="stDataFrame"] {{ border-radius: 14px; overflow: hidden; }}
@@ -192,6 +229,12 @@ button:focus-visible {{ outline: 2px solid {ACCENT} !important; outline-offset: 
 
 
 LOGO = str(Path(__file__).parent / "assets" / "logo.png")  # พื้นหลังโปร่งใส
+
+
+def tint(hex_color: str, alpha: float) -> str:
+    """#rrggbb → rgba() — ใช้แทน CSS variable ใน style="" (Streamlit ตัด --var ออกจาก HTML)"""
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"
 
 
 def apply(page: str) -> None:

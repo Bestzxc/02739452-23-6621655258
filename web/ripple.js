@@ -33,6 +33,21 @@
     return null;
   }
 
+  // ล็อกกราฟ (แท่ง/เส้น) ไม่ให้ลากเลื่อน แต่ยังคลิกเพื่อกรองได้:
+  // ระหว่างกดเมาส์บนกราฟ บล็อก mousemove ไม่ให้ถึง plotly → plotly ไม่เริ่ม pan ส่วนคลิกเฉยๆ ยังผ่าน
+  // (.nsewdrag มีเฉพาะกราฟแกน x/y แผนที่ไม่ได้รับผล) ติดตั้งครั้งเดียวต่อหน้า
+  if (!window.parent.__chartDragLock) {
+    window.parent.__chartDragLock = true;
+    let pressedOnChart = false;
+    doc.addEventListener("mousedown", (e) => {
+      pressedOnChart = !!(e.target.closest && e.target.closest(".js-plotly-plot .nsewdrag"));
+    }, true);
+    doc.addEventListener("mousemove", (e) => {
+      if (pressedOnChart && e.buttons) e.stopPropagation();
+    }, true);
+    doc.addEventListener("mouseup", () => { pressedOnChart = false; }, true);
+  }
+
   let bound = null; // map object ที่ผูก event ไว้แล้ว
   let el = null;
 

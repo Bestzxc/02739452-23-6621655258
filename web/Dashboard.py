@@ -197,19 +197,19 @@ EXPORT_FORMATS = [  # (key, ปุ่ม, คำอธิบาย, mime)
     ("csv", "CSV", "เปิดใน Excel / Google Sheets", "text/csv"),
     ("xlsx", "Excel (.xlsx)", "2 ชีต: รายชื่อร้าน + สรุปตามอำเภอ",
      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-    ("sql", "SQL (PostgreSQL)", f"CREATE TABLE + INSERT ลงตาราง {SQL_TABLE}", "application/sql"),
+    ("sql", "SQL (PostgreSQL)", f"สร้างตาราง {SQL_TABLE} + ข้อมูล", "application/sql"),
     ("json", "JSON", "สำหรับโปรแกรม / API", "application/json"),
 ]
 
 files = export_files(f)
 stem = f"restaurants_nakhonpathom_{date.today():%Y%m%d}"
 with head_right, st.popover("⬇ ดาวน์โหลดข้อมูล", use_container_width=True):
-    st.markdown(f'<div class="card-title">เลือกรูปแบบไฟล์</div>'
-                f'<div class="card-sub">ตามตัวกรองตอนนี้ · {len(f):,} ร้าน</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="dl-head"><div class="card-title">เลือกรูปแบบไฟล์</div>'
+                f'<div class="card-sub">ตามตัวกรองตอนนี้ · {len(f):,} ร้าน</div></div>', unsafe_allow_html=True)
     for key, label, desc, mime in EXPORT_FORMATS:
         st.download_button(f"{label}  ·  {len(files[key]) / 1024:,.0f} KB", files[key], f"{stem}.{key}", mime,
                            use_container_width=True, key=f"dl_{key}")
-        st.markdown(f'<div class="card-sub" style="margin:-12px 0 6px 8px">{desc}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="dl-desc">{desc}</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------ KPI
 rated = f.dropna(subset=["avg_rating"])
@@ -403,8 +403,10 @@ if not row.empty:
                 f"★ {m_rating:.2f}" if m_rating is not None else "",
                 f"{int(m_reviews):,} รีวิว" if m_reviews is not None else "",
             ] if x)
-            link = f'<a href="{escape(m["url"])}" target="_blank">เปิดหน้าต้นทาง ↗</a>' if m["url"] else ""
-            items += (f'<div class="item" style="--c:{theme.SOURCE_COLORS.get(m["source"], "#888")}">'
+            # Overture ให้ได้แค่เว็บไซต์ของร้าน (ส่วนใหญ่ไม่มี) ไม่มีหน้าร้านแบบ Wongnai/OSM
+            link = (f'<a href="{escape(m["url"])}" target="_blank">เปิดหน้าต้นทาง ↗</a>' if m["url"]
+                    else '<div class="info muted">แหล่งนี้ไม่มีลิงก์หน้าร้าน</div>')
+            items += (f'<div class="item"><i class="tl-dot" style="background:{theme.SOURCE_COLORS.get(m["source"], "#888")}"></i>'
                       f'<div class="src">{theme.SOURCE_LABELS.get(m["source"], m["source"])}</div>'
                       f'<div class="info">{escape(m["name"] or "")}</div>'
                       f'<div class="info">{info}</div>{link}</div>')
@@ -416,7 +418,11 @@ if not row.empty:
             f'<div><span>ราคา</span><b style="font-size:0.85rem">{escape(r["price_level"] or "–")}</b></div></div>'
             f'<div class="meta" style="margin-bottom:14px">{escape(r["address"] or "ไม่มีที่อยู่")}</div>'
             f'<div class="card-sub" style="margin-bottom:10px">พบใน {r["source_count"]} แหล่ง</div>'
-            f'<div class="timeline">{items}</div></div>',
+            f'<div class="timeline">{items}</div>'
+            # ลิงก์ที่ใช้ได้กับทุกร้าน: ปักหมุดตามพิกัดใน Google Maps
+            + (f'<a class="maps-link" href="https://www.google.com/maps/search/?api=1&query={r["lat"]},{r["lon"]}" '
+               f'target="_blank">📍 เปิดตำแหน่งใน Google Maps ↗</a>' if r["lat"] == r["lat"] and r["lat"] is not None else "")
+            + '</div>',
             unsafe_allow_html=True,
         )
 
