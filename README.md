@@ -1,10 +1,11 @@
-# ร้านอาหาร อ.กำแพงแสน และอำเภอใกล้เคียง — Restaurant Data Pipeline
+# ร้านอาหาร จังหวัดนครปฐม — Restaurant Data Pipeline
 
 รายวิชา 02739452 แพลตฟอร์มข้อมูลขนาดใหญ่และการวิเคราะห์ · ข้อสอบปลายภาค ภาคต้น 2569
 
 ## หัวข้อและขอบเขต
 รวบรวม **ข้อมูลร้านอาหารและคาเฟ่** (ชื่อร้าน ประเภท พิกัด คะแนนเฉลี่ย จำนวนรีวิว ช่วงราคา)
-ใน **อ.กำแพงแสน, อ.ดอนตูม และ อ.บางเลน จ.นครปฐม** จากหลายแหล่ง แล้วรวมเป็นชุดเดียว
+ใน **จ.นครปฐม ทั้ง 7 อำเภอ** (เมืองนครปฐม, กำแพงแสน, นครชัยศรี, ดอนตูม, บางเลน, สามพราน, พุทธมณฑล)
+จากหลายแหล่ง แล้วรวมเป็นชุดเดียว
 ด้วย Apache Airflow → PostgreSQL → เว็บ dashboard (Streamlit)
 
 > เก็บเฉพาะข้อมูลระดับร้าน **ไม่เก็บข้อความรีวิว ชื่อ หรือโปรไฟล์ผู้รีวิว** (สอดคล้องกับ PDPA)
@@ -14,7 +15,7 @@
 |---|---|---|---|
 | 1 | Wongnai | **Web scraping** (requests + BeautifulSoup, ไม่ใช้ Selenium) | เช็ก robots.txt ทุกครั้งก่อนดึง และเว้นระยะตาม Crawl-delay |
 | 2 | OpenStreetMap | Overpass API (ไม่ต้องใช้ key) | © OpenStreetMap contributors, ODbL |
-| 3 | Google Places API (New) | Text Search API | ต้องมี key ใน `.env` ถ้าไม่มี DAG จะข้ามแหล่งนี้และรวมข้อมูลจากแหล่งที่เหลือ |
+| 3 | Overture Maps Places | อ่าน GeoParquet บน S3 สาธารณะด้วย DuckDB (ไม่ต้องใช้ key ฟรี) | รวมข้อมูลจาก Meta, Foursquare, AllThePlaces · CDLA-Permissive-2.0 · เลือก release ล่าสุดอัตโนมัติ |
 
 ## สถาปัตยกรรม
 ```
@@ -22,7 +23,7 @@ create_tables
   └─ sources (TaskGroup — 3 แหล่งรันขนานกัน)
        ├─ wongnai        : extract (Dynamic Task Mapping ตามพื้นที่) → transform → load
        ├─ osm            : extract → transform → load
-       └─ google_places  : extract (Dynamic Task Mapping ตามพื้นที่) → transform → load
+       └─ overture       : extract (DuckDB กรองด้วย bbox + หมวด food_and_drink) → transform → load
   └─ quality_check  (branch; trigger_rule=all_done → รันต่อแม้บางแหล่งล่ม)
        ├─ quarantine_bad_rows → merge_and_dedup   (มีแถวไม่ผ่าน → แยกไป rejected_listings)
        ├─ merge_and_dedup                         (ผ่านทั้งหมด)
@@ -52,7 +53,7 @@ create_tables
 ต้องมี Docker Desktop (หรือ Docker Engine กับ Compose v2)
 
 ```bash
-cp .env.example .env          # แก้รหัสผ่าน และใส่ GOOGLE_PLACES_API_KEY ถ้ามี
+cp .env.example .env          # แก้รหัสผ่าน (ไม่ต้องใช้ API key ใด ๆ)
 docker compose up -d --build  # รันครั้งแรกใช้เวลาประมาณ 3–5 นาที
 ```
 

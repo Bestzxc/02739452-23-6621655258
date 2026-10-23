@@ -1,10 +1,10 @@
-"""ร้านอาหาร อ.กำแพงแสนและอำเภอใกล้เคียง — รวมข้อมูลจาก Wongnai, OpenStreetMap, Google Places
+"""ร้านอาหาร จ.นครปฐม (7 อำเภอ) — รวมข้อมูลจาก Wongnai, OpenStreetMap, Overture Maps
 
 create_tables
    └─ sources (TaskGroup, 3 แหล่งรันขนานกัน)
-        ├─ wongnai        : extract (map ตามพื้นที่) → transform → load
-        ├─ osm            : extract → transform → load
-        └─ google_places  : extract (map ตามพื้นที่) → transform → load
+        ├─ wongnai   : extract (map ตามพื้นที่) → transform → load
+        ├─ osm       : extract → transform → load
+        └─ overture  : extract → transform → load
    └─ quality_check (branch, รันแม้บางแหล่งล่ม)
         ├─ quarantine_bad_rows ─┐
         ├───────────────────────┴─ merge_and_dedup
@@ -113,30 +113,25 @@ def restaurant_pipeline():
 
             load(transform(extract()))
 
-        @task_group(group_id="google_places")
-        def google_places():
+        @task_group(group_id="overture")
+        def overture():
             @task
-            def extract(area: dict) -> list[dict]:
-                if not config.GOOGLE_PLACES_API_KEY:
-                    raise AirflowSkipException("ไม่มี GOOGLE_PLACES_API_KEY ใน .env → ข้ามแหล่งนี้")
-                return sources.extract_google_places(area)
+            def extract() -> list[dict]:
+                return sources.extract_overture()
 
-            @task(trigger_rule=TriggerRule.ALL_DONE)
-            def transform(raw, **context) -> list[dict]:
-                rows = sources.transform_google_places(_collect(raw))
-                if not rows:
-                    _no_data("google_places", "sources.google_places.extract", **context)
-                return rows
+            @task
+            def transform(raw: list[dict]) -> list[dict]:
+                return sources.transform_overture(raw)
 
             @task
             def load(rows: list[dict], **context) -> int:
                 return _load(rows, **context)
 
-            load(transform(extract.expand(area=config.AREAS)))
+            load(transform(extract()))
 
         wongnai()
         osm()
-        google_places()
+        overture()
 
     # ---------------------------------------------------------- quality check
     @task.branch(trigger_rule=TriggerRule.ALL_DONE)

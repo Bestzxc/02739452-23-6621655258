@@ -288,53 +288,63 @@ def transform_osm(raw: list[dict]) -> list[dict]:
 
 
 # ===========================================================================
-# 3) Google Places API (New) — Text Search
+# 3) Overture Maps Places — GeoParquet บน S3 สาธารณะ อ่านด้วย DuckDB (ไม่ต้องใช้ key)
 # ===========================================================================
-_GOOGLE_FIELDS = ",".join([
-    "places.id", "places.displayName", "places.location", "places.rating",
-    "places.userRatingCount", "places.priceLevel", "places.primaryTypeDisplayName",
-    "places.formattedAddress", "places.googleMapsUri", "nextPageToken",
-])
+def _overture_latest_release() -> str:
+    """หา release ล่าสุดจาก listing ของ bucket (Overture ออก release ใหม่ทุกเดือน)"""
+    resp = session().get(config.OVERTURE_BUCKET_URL,
+                         params={"list-type": "2", "prefix": "release/", "delimiter": "/"},
+                         timeout=config.HTTP_TIMEOUT_SEC)
+    resp.raise_for_status()
+    releases = re.findall(r"<Prefix>release/([^/<]+)/</Prefix>", resp.text)
+    if not releases:
+        raise ValueError("Overture: ไม่พบ release ใน bucket")
+    return max(releases)
 
 
-def extract_google_places(area: dict) -> list[dict]:
-    s = session()
-    s.headers.update({"X-Goog-Api-Key": config.GOOGLE_PLACES_API_KEY, "X-Goog-FieldMask": _GOOGLE_FIELDS})
-    body = {
-        "textQuery": f"ร้านอาหาร {area['query']}",
-        "languageCode": "th",
-        "pageSize": 20,
-        "locationBias": {"circle": {
-            "center": {"latitude": area["lat"], "longitude": area["lon"]},
-            "radius": min(area["radius_m"], 50000),
-        }},
-    }
-    rows: list[dict] = []
-    for _ in range(config.GOOGLE_MAX_PAGES):
-        resp = s.post(config.GOOGLE_TEXT_SEARCH_URL, json=body, timeout=config.HTTP_TIMEOUT_SEC)
-        resp.raise_for_status()
-        data = resp.json()
-        for p in data.get("places", []):
-            p["area"] = area["name"]
-            rows.append(p)
-        token = data.get("nextPageToken")
-        if not token:
-            break
-        body["pageToken"] = token
-    log.info("Google Places %s: %d places", area["name"], len(rows))
-    return rows
+def extract_overture() -> list[dict]:
+    import duckdb  # import ในฟังก์ชัน: DAG parse เร็วขึ้น
+
+    release = _overture_latest_release()
+    # กรอบสี่เหลี่ยมครอบทุกพื้นที่ (1 องศา ≈ 111 กม.) — DuckDB ใช้ bbox ข้าม row group ที่ไม่เกี่ยว
+    pad = [a["radius_m"] / 111_000 for a in config.AREAS]
+    min_lat = min(a["lat"] - p for a, p in zip(config.AREAS, pad))
+    max_lat = max(a["lat"] + p for a, p in zip(config.AREAS, pad))
+    min_lon = min(a["lon"] - p for a, p in zip(config.AREAS, pad))
+    max_lon = max(a["lon"] + p for a, p in zip(config.AREAS, pad))
+
+    con = duckdb.connect()
+    con.execute("INSTALL httpfs; LOAD httpfs; SET s3_region='us-west-2';")
+    rows = con.execute(f"""
+        SELECT id, names."primary" AS name, basic_category AS category, confidence,
+               (bbox.ymin + bbox.ymax) / 2 AS lat, (bbox.xmin + bbox.xmax) / 2 AS lon,
+               addresses[1].freeform AS address, websites[1] AS website
+        FROM read_parquet('{config.OVERTURE_PLACES_GLOB.format(release=release)}')
+        WHERE bbox.xmin BETWEEN ? AND ? AND bbox.ymin BETWEEN ? AND ?
+          AND list_contains(taxonomy.hierarchy, 'food_and_drink')
+          AND confidence >= ?
+          AND names."primary" IS NOT NULL
+    """, [min_lon, max_lon, min_lat, max_lat, config.OVERTURE_MIN_CONFIDENCE]).fetchall()
+    cols = ["id", "name", "category", "confidence", "lat", "lon", "address", "website"]
+    places = [dict(zip(cols, r)) for r in rows]
+
+    # กรอบสี่เหลี่ยมกินพื้นที่จังหวัดข้างเคียง → เก็บเฉพาะที่อยู่ในรัศมีของพื้นที่ใดพื้นที่หนึ่ง
+    in_scope = [
+        p for p in places
+        if any(haversine_m(p["lat"], p["lon"], a["lat"], a["lon"]) <= a["radius_m"] for a in config.AREAS)
+    ]
+    log.info("Overture %s: %d food places in bbox, %d in areas", release, len(places), len(in_scope))
+    return in_scope
 
 
-def transform_google_places(raw: list[dict]) -> list[dict]:
+def transform_overture(raw: list[dict]) -> list[dict]:
     return [
         _record(
-            source="google_places", source_id=p["id"], name=(p.get("displayName") or {}).get("text"),
-            category=(p.get("primaryTypeDisplayName") or {}).get("text"),
-            rating=_to_float(p.get("rating")), review_count=_to_int(p.get("userRatingCount")),
-            price_level=p.get("priceLevel"),
-            lat=_to_float((p.get("location") or {}).get("latitude")),
-            lon=_to_float((p.get("location") or {}).get("longitude")),
-            address=p.get("formattedAddress"), area=p.get("area"), url=p.get("googleMapsUri"),
+            source="overture", source_id=p["id"], name=p["name"],
+            category=(p.get("category") or "").replace("_", " ") or None,
+            lat=_to_float(p.get("lat")), lon=_to_float(p.get("lon")),
+            address=p.get("address"), area=nearest_area(_to_float(p.get("lat")), _to_float(p.get("lon"))),
+            url=p.get("website"),
         )
         for p in raw
     ]

@@ -3,9 +3,9 @@ import streamlit as st
 
 from db import query, table_exists
 
-st.set_page_config(page_title="ร้านอาหารกำแพงแสน", page_icon="🍜", layout="wide")
-st.title("🍜 ร้านอาหาร อ.กำแพงแสน และอำเภอใกล้เคียง")
-st.caption("รวมข้อมูลจาก Wongnai · OpenStreetMap · Google Places — อ่านจาก PostgreSQL โดยตรง")
+st.set_page_config(page_title="ร้านอาหารนครปฐม", page_icon="🍜", layout="wide")
+st.title("🍜 ร้านอาหาร จังหวัดนครปฐม")
+st.caption("รวมข้อมูลจาก Wongnai · OpenStreetMap · Overture Maps — อ่านจาก PostgreSQL โดยตรง")
 
 if not table_exists("restaurants"):
     st.warning("ยังไม่มีข้อมูล — เปิด Airflow (http://localhost:8080) แล้วรัน DAG `restaurant_pipeline` ก่อน")
@@ -91,4 +91,4 @@ st.dataframe(
     hide_index=True, use_container_width=True,
 )
 
-st.caption("ข้อมูลแผนที่ © OpenStreetMap contributors (ODbL) · ไม่มีการเก็บข้อมูลส่วนบุคคลของผู้รีวิว")
+st.caption("ข้อมูลแผนที่ © OpenStreetMap contributors (ODbL) · Overture Maps Foundation (CDLA-Permissive-2.0) · ไม่มีการเก็บข้อมูลส่วนบุคคลของผู้รีวิว")

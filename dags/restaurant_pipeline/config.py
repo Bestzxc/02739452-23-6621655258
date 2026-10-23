@@ -1,16 +1,18 @@
 """ค่าตั้งค่าของ pipeline — แก้ที่ไฟล์นี้ไฟล์เดียวเมื่อต้องการเปลี่ยนขอบเขตหรือแหล่งข้อมูล"""
 
-import os
-
 # ---------------------------------------------------------------------------
 # ขอบเขตพื้นที่ (Dynamic Task Mapping จะแตก task ตามรายการนี้)
 # พิกัดเป็นค่าประมาณ — ตรวจสอบ/ปรับจาก Google Maps หรือ OSM ก่อนใช้งานจริง
 # อยากขยายขอบเขต (เช่น ทุกจังหวัด) ให้เพิ่มรายการในลิสต์นี้อย่างเดียว
 # ---------------------------------------------------------------------------
-AREAS = [
-    {"name": "กำแพงแสน", "lat": 14.0213, "lon": 99.9730, "radius_m": 12000, "query": "กำแพงแสน"},
+AREAS = [  # จ.นครปฐม ครบ 7 อำเภอ
+    {"name": "เมืองนครปฐม", "lat": 13.8199, "lon": 100.0621, "radius_m": 12000, "query": "นครปฐม"},
+    {"name": "กำแพงแสน", "lat": 14.0213, "lon": 99.9730, "radius_m": 14000, "query": "กำแพงแสน"},
+    {"name": "นครชัยศรี", "lat": 13.8000, "lon": 100.1850, "radius_m": 10000, "query": "นครชัยศรี"},
     {"name": "ดอนตูม", "lat": 13.9600, "lon": 100.0800, "radius_m": 8000, "query": "ดอนตูม"},
-    {"name": "บางเลน", "lat": 14.0200, "lon": 100.1700, "radius_m": 8000, "query": "บางเลน"},
+    {"name": "บางเลน", "lat": 14.0200, "lon": 100.1700, "radius_m": 12000, "query": "บางเลน"},
+    {"name": "สามพราน", "lat": 13.7240, "lon": 100.2150, "radius_m": 10000, "query": "สามพราน"},
+    {"name": "พุทธมณฑล", "lat": 13.8020, "lon": 100.3130, "radius_m": 6000, "query": "พุทธมณฑล"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -25,7 +27,7 @@ HTTP_TIMEOUT_SEC = 30
 # หน้าค้นหาใช้ page.number ในการแบ่งหน้า (ข้อมูลร้านอยู่ใน window._wn ของหน้า)
 # ---------------------------------------------------------------------------
 WONGNAI_SEARCH_URL = "https://www.wongnai.com/restaurants?q={query}&page.number={page}"
-WONGNAI_MAX_PAGES = 5
+WONGNAI_MAX_PAGES = 8  # ~10 ร้าน/หน้า
 
 # ---------------------------------------------------------------------------
 # แหล่งที่ 2: OpenStreetMap (Overpass API, ไม่ต้องใช้ key)
@@ -34,11 +36,12 @@ OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OSM_AMENITIES = ["restaurant", "cafe", "fast_food", "food_court"]
 
 # ---------------------------------------------------------------------------
-# แหล่งที่ 3: Google Places API (New) — ใส่ key ใน .env, ไม่มี key = ข้ามแหล่งนี้
+# แหล่งที่ 3: Overture Maps Places — open data (Meta, Foursquare, AllThePlaces ฯลฯ)
+# ไฟล์ GeoParquet บน S3 สาธารณะ อ่านด้วย DuckDB ไม่ต้องใช้ key ไม่มีค่าใช้จ่าย
 # ---------------------------------------------------------------------------
-GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
-GOOGLE_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
-GOOGLE_MAX_PAGES = 3  # 20 ร้าน/หน้า → สูงสุด 60 ร้านต่อพื้นที่
+OVERTURE_BUCKET_URL = "https://overturemaps-us-west-2.s3.amazonaws.com"
+OVERTURE_PLACES_GLOB = "s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*.parquet"
+OVERTURE_MIN_CONFIDENCE = 0.6  # ตัด place ที่ Overture เองไม่มั่นใจว่ามีอยู่จริง
 
 # ---------------------------------------------------------------------------
 # การตัดรายการซ้ำข้ามแหล่ง
@@ -48,7 +51,7 @@ DEDUP_NAME_SIMILARITY = 85     # 0–100 (rapidfuzz) เมื่อมีพิ
 DEDUP_NAME_SIMILARITY_NO_GEO = 95  # เมื่อฝั่งใดฝั่งหนึ่งไม่มีพิกัด ต้องชื่อเหมือนกันมากกว่า
 
 # ลำดับความน่าเชื่อถือของแหล่ง (ใช้เลือกชื่อ/ข้อมูลหลักของร้านหลังรวม)
-SOURCE_PRIORITY = {"wongnai": 1, "google_places": 2, "osm": 3}
+SOURCE_PRIORITY = {"wongnai": 1, "overture": 2, "osm": 3}
 
 # ---------------------------------------------------------------------------
 # ตรวจคุณภาพข้อมูล
