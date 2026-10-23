@@ -4,8 +4,8 @@ import theme
 from db import query, table_exists
 
 st.set_page_config(page_title="Pipeline Status", page_icon="🛠️", layout="wide")
-theme.apply()
-st.title("สถานะ Pipeline")
+theme.apply("Pipeline_Status")
+theme.page_head("สถานะ Pipeline", "ผลการรัน DAG restaurant_pipeline แต่ละรอบ อ่านจากตาราง pipeline_runs และ task_runs")
 
 if not table_exists("pipeline_runs"):
     st.info("ยังไม่มีประวัติการรัน")
