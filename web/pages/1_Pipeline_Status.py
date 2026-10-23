@@ -1,9 +1,11 @@
 import streamlit as st
 
+import theme
 from db import query, table_exists
 
 st.set_page_config(page_title="Pipeline Status", page_icon="🛠️", layout="wide")
-st.title("🛠️ สถานะ Pipeline")
+theme.apply()
+st.title("สถานะ Pipeline")
 
 if not table_exists("pipeline_runs"):
     st.info("ยังไม่มีประวัติการรัน")

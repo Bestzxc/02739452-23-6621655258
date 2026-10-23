@@ -239,7 +239,8 @@ def transform_wongnai(raw: list[dict]) -> list[dict]:
     return [
         _record(
             source="wongnai", source_id=r["id"], name=r["name"], category=r.get("category"),
-            rating=_to_float(r.get("rating")), review_count=_to_int(r.get("review_count")),
+            # Wongnai ใช้ 0 แทน "ยังไม่มีคะแนน" → เก็บเป็น NULL ไม่ให้ดึงค่าเฉลี่ยลง
+            rating=_to_float(r.get("rating")) or None, review_count=_to_int(r.get("review_count")),
             price_level=str(r["price"]) if r.get("price") else None,
             lat=_to_float(r.get("lat")), lon=_to_float(r.get("lon")),
             address=r.get("address"), area=r.get("area"), url=r.get("url"),
