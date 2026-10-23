@@ -1,0 +1,5 @@
+# ไลบรารีเพิ่มเติมของ Airflow (DAG) — ติดตั้งใน image ผ่าน Dockerfile
+# apache-airflow-providers-postgres และ psycopg2 มีใน image apache/airflow อยู่แล้ว
+requests>=2.31
+beautifulsoup4>=4.12
+rapidfuzz>=3.9
