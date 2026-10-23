@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>23_6621655258_summary</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap');
+  @page { size: A4; margin: 13mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "IBM Plex Sans Thai", "Leelawadee UI", sans-serif; font-size: 10pt; line-height: 1.5; color: #1d1d1b; margin: 0; }
+  h1 { font-size: 15pt; margin: 0 0 2px; }
+  h2 { font-size: 12pt; margin: 14px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #1f7a55; color: #14583d; }
+  h3 { font-size: 10.5pt; margin: 10px 0 4px; }
+  p { margin: 3px 0 6px; }
+  .meta { color: #555; font-size: 9pt; }
+  .meta a { color: #1f7a55; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 9pt; }
+  th, td { border: 1px solid #d7d7d2; padding: 4px 6px; text-align: left; vertical-align: top; }
+  th { background: #eef5f1; font-weight: 600; }
+  .ok { color: #0a7d0a; font-weight: 600; white-space: nowrap; }
+  figure { margin: 6px 0 8px; break-inside: avoid; }
+  figure img { width: 100%; height: 58mm; object-fit: contain; object-position: top; background: #f4f4f2;
+               border: 1px solid #ccc; border-radius: 4px; display: block; }
+  figure.tall img { height: 92mm; object-fit: cover; }
+  figcaption { font-size: 8.5pt; color: #555; margin-top: 2px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .problem { break-inside: avoid; margin-bottom: 6px; }
+  .problem b.k { display: inline-block; min-width: 72px; color: #14583d; }
+  ul { margin: 2px 0 6px; padding-left: 18px; }
+  li { margin: 1px 0; }
+  code { font-size: 8.5pt; background: #f2f2ef; padding: 0 3px; border-radius: 3px; }
+  .page-break { break-before: page; }
+  .small { font-size: 8.5pt; color: #555; }
+</style>
+</head>
+<body>
+
+<h1>สรุปภาพรวม: ระบบรวมข้อมูลร้านอาหาร จังหวัดนครปฐม</h1>
+<div class="meta">
+  02739452 แพลตฟอร์มข้อมูลขนาดใหญ่และการวิเคราะห์ · สอบปลายภาค ภาคต้น 2569 ·
+  ลำดับที่ 23 · รหัสนิสิต 6621655258<br>
+  GitHub: <a href="https://github.com/Bestzxc/02739452-23-6621655258">https://github.com/Bestzxc/02739452-23-6621655258</a>
+  · วิธีรัน: <code>cp .env.example .env</code> แล้ว <code>docker compose up -d --build</code> (รายละเอียดใน README)
+</div>
+
+<h2>1. ภาพรวมงานแต่ละส่วน — ทำได้ถึงระดับ 3 + โบนัสทั้ง 2 ข้อ</h2>
+<p><b>ขอบเขต:</b> ร้านอาหารและคาเฟ่ใน จ.นครปฐม ครบ 7 อำเภอ · เก็บเฉพาะข้อมูลระดับร้าน (ไม่เก็บข้อความรีวิวหรือข้อมูลผู้ใช้ ตาม PDPA)</p>
+<table>
+  <tr><th style="width:4%">#</th><th style="width:20%">แหล่งข้อมูล</th><th style="width:38%">วิธีดึง</th><th>ได้อะไร</th></tr>
+  <tr><td>1</td><td>Wongnai</td><td><b>Web scraping</b> ด้วย requests + BeautifulSoup (ไม่ใช้ Selenium) อ่าน JSON ที่ฝังในหน้า · ตรวจ robots.txt ก่อนทุก request · เว้น 2 วินาที</td><td>ชื่อ ประเภท คะแนน จำนวนรีวิว ช่วงราคา พิกัด</td></tr>
+  <tr><td>2</td><td>OpenStreetMap</td><td>Overpass API (ไม่ต้องใช้ key)</td><td>ชื่อ ประเภทอาหาร พิกัด ที่อยู่</td></tr>
+  <tr><td>3</td><td>Overture Maps Places</td><td>อ่าน GeoParquet บน S3 สาธารณะด้วย DuckDB กรองด้วย bbox + หมวด food_and_drink (ฟรี ไม่ต้องใช้ key)</td><td>ชื่อ ประเภท พิกัด ที่อยู่ เว็บไซต์</td></tr>
+</table>
+
+<table>
+  <tr><th style="width:13%">ระดับ</th><th>สิ่งที่ทำ</th><th style="width:9%">สถานะ</th></tr>
+  <tr><td>1</td><td>DAG <code>restaurant_pipeline</code>: extract → transform → load → PostgreSQL → เว็บ Streamlit มีตารางและกราฟ</td><td class="ok">✓ ผ่าน</td></tr>
+  <tr><td>2</td><td>3 แหล่งรันขนานกันใน TaskGroup <code>sources</code> · แปลงเป็น schema เดียว (13 ฟิลด์) · <code>INSERT … ON CONFLICT (source, source_id) DO UPDATE</code> รันซ้ำแล้วจำนวนแถวไม่เพิ่ม · เว็บมี KPI 4 การ์ดและตัวกรอง (อำเภอ ประเภท แหล่ง คะแนนดาว คำค้น)</td><td class="ok">✓ ผ่าน</td></tr>
+  <tr><td>3</td><td><code>trigger_rule=all_done</code> ทำให้รวมข้อมูลต่อได้แม้บางแหล่งล่ม (รอบล่าสุด Wongnai อ.ดอนตูม ล้ม → สถานะ partial แต่ยังรวมข้อมูลได้) · ตัดรายการซ้ำข้ามแหล่งด้วยชื่อคล้ายกัน ≥ 85% (rapidfuzz) + ห่างกัน ≤ 150 ม. · ตรวจคุณภาพแล้วแตกเส้นทางด้วย <code>@task.branch</code> → แถวไม่ผ่านไป <code>rejected_listings</code></td><td class="ok">✓ ผ่าน</td></tr>
+  <tr><td>โบนัส</td><td>Dynamic Task Mapping (<code>extract.expand(area=AREAS)</code> 7 อำเภอ) และหน้า Pipeline Status บนเว็บ</td><td class="ok">✓ ทั้งคู่</td></tr>
+</table>
+<p><b>ผลรอบล่าสุด:</b> staging 7,928 แถว → ผ่าน QC 7,848 (ไม่ผ่าน 80 เช่น ร้านโฆษณานอกพื้นที่) → <b>7,679 ร้าน</b>หลังตัดซ้ำ (พบในหลายแหล่ง 160 ร้าน) — เกินข้อกำหนด 100 รายการ</p>
+
+<div class="two">
+  <figure><img src="screenshots/airflow_graph.png"><figcaption>รูปที่ 1 Graph view ของ DAG (TaskGroup sources 3 แหล่ง → quality_check branch → merge_and_dedup)</figcaption></figure>
+  <figure><img src="screenshots/airflow_grid.png"><figcaption>รูปที่ 2 Grid view ผลการรันแต่ละรอบ: รอบแรก ๆ กลุ่ม sources ล่ม (Wongnai) แต่ quality_check / merge_and_dedup ยังทำงานต่อ</figcaption></figure>
+</div>
+
+<div class="two">
+<figure class="tall"><img src="screenshots/dashboard.png"><figcaption>รูปที่ 3 หน้า Dashboard: KPI, สัดส่วนแหล่งข้อมูล (คลิกเพื่อกรอง), กราฟ 3 แบบ, แผนที่ร้าน (ชี้ดูชื่อ · คลิกดูรายละเอียด), ดาวน์โหลด CSV / Excel / SQL / JSON</figcaption></figure>
+<figure class="tall"><img src="screenshots/pipeline_status.png"><figcaption>รูปที่ 4 หน้า Pipeline Status: สถานะรอบล่าสุด, จำนวนแถวแต่ละขั้น, สถานะ task แยกแหล่ง/อำเภอ, ประวัติการรัน</figcaption></figure>
+</div>
+
+<h2>2. ปัญหาที่พบและวิธีแก้</h2>
+<div class="problem">
+  <h3>ปัญหาที่ 1 — Wongnai ดึงไม่ได้ทั้งที่ robots.txt อนุญาต</h3>
+  <b class="k">อาการ</b> task <code>sources.wongnai.extract</code> ล้มทุกพื้นที่ด้วย <code>RobotsDisallowed</code> ข้อมูลทั้งระบบเหลือ 14 ร้าน (ต่ำกว่า 100)<br>
+  <b class="k">หาสาเหตุ</b> อ่าน log ของ task ใน Airflow → เปิด robots.txt จริงพบว่าห้ามแค่ <code>/users/</code> → ทดสอบใน container พบว่า <code>robotparser.read()</code> ใช้ User-Agent ของ urllib แล้วเว็บตอบ 403 ซึ่ง robotparser ตีความว่า "ห้ามทุกหน้า"<br>
+  <b class="k">วิธีแก้</b> โหลด robots.txt ด้วย requests + User-Agent ของโปรเจกต์ แล้วส่งให้ <code>rp.parse()</code> เอง (ยังเคารพ robots.txt เหมือนเดิม)
+</div>
+<div class="problem">
+  <h3>ปัญหาที่ 2 — หน้าเว็บโหลดได้ (HTTP 200) แต่ parse ได้ 0 ร้าน และหน้า 2 ซ้ำหน้า 1</h3>
+  <b class="k">อาการ</b> extract ได้ HTML 560 KB แต่ parser คืน 0 รายการ · พอแก้แล้ว หน้า 2–5 ได้ร้านชุดเดิม<br>
+  <b class="k">หาสาเหตุ</b> บันทึก HTML ออกมาไล่ดู script ทั้งหมด พบว่าข้อมูลร้านอยู่ใน <code>window._wn = {…}</code> ไม่ใช่ <code>__NEXT_DATA__</code> ที่เตรียมไว้ · ค้นคีย์ที่เกี่ยวกับหน้าใน state พบว่าเว็บใช้ <code>page.number</code> ไม่ใช่ <code>page</code><br>
+  <b class="k">วิธีแก้</b> เพิ่มการอ่าน <code>window._wn</code> ด้วย <code>json.JSONDecoder().raw_decode</code> และเปลี่ยน URL เป็น <code>page.number</code> → ได้ ~10 ร้านใหม่ต่อหน้า
+</div>
+<div class="problem">
+  <h3>ปัญหาที่ 3 — load ล้ม: "ON CONFLICT DO UPDATE command cannot affect row a second time"</h3>
+  <b class="k">อาการ</b> extract/transform ผ่าน แต่ <code>wongnai.load</code> ล้มทุกครั้ง<br>
+  <b class="k">หาสาเหตุ</b> อ่าน error ใน log → ร้านเดียวกัน (เช่น ร้านโฆษณา) โผล่ในผลค้นหาหลายอำเภอ ทำให้ key <code>(source, source_id)</code> ซ้ำกันใน INSERT คำสั่งเดียว<br>
+  <b class="k">วิธีแก้</b> ตัดแถวที่ key ซ้ำออกก่อน UPSERT (เก็บแถวเดียวต่อ key)
+</div>
+<div class="problem">
+  <h3>ปัญหาที่ 4 — แหล่งที่ 3 (Google Places) ต้องผูกบัตร และแผนที่หายเมื่อซูมใกล้</h3>
+  <b class="k">อาการ</b> Google Places ไม่มี key → ถูกข้ามทุกรอบ · บนเว็บซูมเกินระดับ 16 แผนที่กลายเป็นภาพ "Map data not yet available"<br>
+  <b class="k">หาสาเหตุ</b> Google Places ต้องเปิด billing · ยิงขอ tile ของ Esri ทีละระดับ พบว่าตั้งแต่ระดับ 17 ได้ภาพเดียวกันหมด (ไม่มีข้อมูล)<br>
+  <b class="k">วิธีแก้</b> เปลี่ยนแหล่งที่ 3 เป็น Overture Maps (open data ฟรี อ่านด้วย DuckDB) · ตั้ง maxzoom ของ tile เป็น 16 ให้แผนที่ขยายภาพระดับ 16 แทน และจำกัดการซูมที่ 17.5
+</div>
+
+<h2>3. การวางแผนและจัดลำดับงาน</h2>
+<p><b>หลักที่ใช้:</b> ทำให้ <b>ส่วนที่มีคะแนน (pipeline ระดับ 1–3) ทำงานครบและ push ขึ้น GitHub ก่อน</b> แล้วค่อยขยายขอบเขตและแต่งเว็บ — commit ทุกช่วงที่ระบบใช้ได้ เพื่อไม่ให้งานที่ทำแล้วเสี่ยงหายหากหมดเวลา</p>
+<table>
+  <tr><th style="width:17%">เวลา</th><th>งาน</th><th style="width:16%">commit</th></tr>
+  <tr><td>ก่อนสอบ</td><td>เตรียมโครง DAG, schema, ตัดซ้ำ, หน้าเว็บ และ docker-compose ไว้ (ส่วนที่ต้องดูหน้าเว็บจริงทำเป็น TODO วันสอบ)</td><td>–</td></tr>
+  <tr><td>13:00–13:50</td><td>จองหัวข้อ เปิดระบบ รัน DAG รอบแรก → พบว่า Wongnai ล้ม ได้แค่ 14 ร้าน</td><td>–</td></tr>
+  <tr><td>13:50–14:00</td><td>แก้ปัญหาที่ 1–3 จนได้ 127 ร้าน (ผ่านขั้นต่ำ 100) → สร้าง repo และ push ทันที</td><td>14:00</td></tr>
+  <tr><td>14:00–14:11</td><td>ขยายเป็นทั้งจังหวัด 7 อำเภอ · เปลี่ยน Google Places เป็น Overture Maps → 7,679 ร้าน</td><td>14:11</td></tr>
+  <tr><td>14:11–15:26</td><td>ปรับหน้าเว็บ: ธีม, แผนที่ (hover/คลิก/ล็อกขอบเขต/แผงรายละเอียด), ตัวกรอง, ดาวน์โหลด CSV/Excel/SQL, หน้า Pipeline Status</td><td>14:23, 14:29, 15:16, 15:26</td></tr>
+  <tr><td>15:26–16:00</td><td>เขียนสรุป PDF นี้ · ตรวจ repo</td><td>–</td></tr>
+</table>
+
+<h3>งานที่ตัดออก และเหตุผล</h3>
+<ul>
+  <li><b>Google Places API</b> — ต้องผูกบัตรเครดิต จึงเปลี่ยนเป็น Overture Maps ที่ฟรี ซึ่งได้ร้านมากกว่า (7,184 แถว) แต่ไม่มีคะแนนรีวิว</li>
+  <li><b>รวมชื่อประเภทร้านไทย/อังกฤษให้เป็นชุดเดียว</b> (เช่น cafe / coffee shop / ร้านกาแฟ/ชา) — ต้องทำตารางแปลงชื่อด้วยมือ ใช้เวลามาก จึงทำแค่แยกประเภทที่คั่นด้วย , และ ; และซ่อนประเภทที่มีไม่ถึง 3 ร้าน</li>
+  <li><b>คะแนนจากแหล่งอื่นนอกจาก Wongnai</b> — OSM และ Overture ไม่มีข้อมูลนี้ คะแนนเฉลี่ยจึงคิดจาก 403 ร้านที่มีคะแนนเท่านั้น</li>
+  <li><b>คลิกกราฟเพื่อกรองซ้ำหลายครั้ง</b> — ครั้งแรกใช้ได้ แต่ครั้งถัดไปในหน้าเดิมยังไม่ติด ไม่ทันหาสาเหตุ จึงให้ใช้ตัวกรองใน sidebar แทน (ใช้ได้ทุกช่อง)</li>
+  <li><b>ดึง Wongnai หลายหน้ากว่านี้</b> — ตั้งไว้ 8 หน้า/อำเภอ เพราะต้องเว้น 2 วินาทีต่อ request ตามมารยาทการ scrape ถ้าเพิ่มหน้า DAG จะรันนานขึ้นมาก</li>
+</ul>
+
+<h3>สิ่งที่เรียนรู้</h3>
+<p>การอ่าน log ของแต่ละ task ใน Airflow ช่วยหาสาเหตุได้เร็วกว่าการเดา · การ commit ทันทีที่ระบบผ่านขั้นต่ำช่วยลดความเสี่ยงเรื่องเวลา · <code>trigger_rule=all_done</code> ทำให้เห็นผลจริงตอนแหล่งหนึ่งล่ม (รอบล่าสุดสถานะ partial แต่ dashboard ยังมีข้อมูลครบจากแหล่งที่เหลือ)</p>
+
+</body>
+</html>
