@@ -1,11 +1,16 @@
+import json
 from html import escape
+from pathlib import Path
 
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 import theme
 from db import query, table_exists
+
+RIPPLE_JS = (Path(__file__).parent / "ripple.js").read_text(encoding="utf-8")
 
 st.set_page_config(page_title="ร้านอาหารนครปฐม", page_icon="🍜", layout="wide")
 theme.apply()
@@ -161,14 +166,19 @@ with map_col, st.container(border=True):
             hovertemplate="<b>%{customdata[1]}</b><extra></extra>",
         ))
     sel = geo[geo["restaurant_id"] == selected_id]
-    if not sel.empty:  # วงแหวนรอบร้านที่เลือก
+    if not sel.empty:  # จุดของร้านที่เลือก (คลื่นวงกลมวาดทับด้วย ripple.js ด้านล่าง)
         fig.add_trace(go.Scattermapbox(
             lat=sel["lat"], lon=sel["lon"], mode="markers", hoverinfo="skip", showlegend=False,
-            marker=dict(size=18, color="#ffffff", opacity=0.9),
+            marker=dict(size=12, color="#ffffff"),
         ))
     center = (dict(lat=float(sel["lat"].iloc[0]), lon=float(sel["lon"].iloc[0])) if not sel.empty
               else dict(lat=float(geo["lat"].mean()), lon=float(geo["lon"].mean())))
     theme.style(fig, 560)
+    # ล็อกไม่ให้เลื่อน/ซูมออกเกินขอบเขตข้อมูล (จ.นครปฐม) — ใช้ข้อมูลทั้งหมด ไม่ใช่ที่กรองแล้ว จึงคงที่
+    pad = 0.06
+    bounds = dict(west=float(df["lon"].min()) - pad, east=float(df["lon"].max()) + pad,
+                  south=float(df["lat"].min()) - pad, north=float(df["lat"].max()) + pad)
+    fig.update_layout(mapbox_bounds=bounds)
     fig.update_layout(
         # แผนที่พื้นหลังโทนมืดของ Esri (ไม่ต้องใช้ key) — ฐาน + ชื่อสถานที่
         mapbox=dict(style={"version": 8, "sources": {}, "layers": [  # พื้นมืดระหว่างรอโหลด tile
@@ -182,6 +192,9 @@ with map_col, st.container(border=True):
     )
     event = st.plotly_chart(fig, use_container_width=True, key="map", on_select="rerun",
                             selection_mode="points", config={"displayModeBar": False, "scrollZoom": True})
+    target = (json.dumps({"lat": float(sel["lat"].iloc[0]), "lon": float(sel["lon"].iloc[0]), "color": theme.ACCENT})
+              if not sel.empty else "null")
+    components.html(f"<script>const TARGET = {target};</script><script>{RIPPLE_JS}</script>", height=0)
 
 points = event.get("selection", {}).get("points", []) if event else []
 if points:
